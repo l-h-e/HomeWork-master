@@ -6,8 +6,10 @@ using MonsterLove.StateMachine;
 
 public class CheckPoint : MonoBehaviour
 {
+    
     public enum CheckPointStates
     {
+        prepare,
         TalkBeforeBattle,
         Battle,
         TalkAffteBattle
@@ -21,26 +23,37 @@ public class CheckPoint : MonoBehaviour
     public GameObject[] EnemyGroup;//ドローンがここにある
     Button mahoujin;
     IEnumerator talkBeforeIenu;
-    IEnumerator talkAfterIenu;
+    IEnumerator talkAffteIenu;
+
+    public GameObject shooter;
     // Start is called before the first frame update
+    private int nowEnemyNum;
 
     void Awake()
     {
         checkPointFSM = StateMachine<CheckPointStates>.Initialize(this);
+        shooter=GameObject.Find("Shooter");
         checkPointFSM.ChangeState(CheckPointStates.TalkBeforeBattle);
     }
     void Start()
     {
+        
         mahoujin = GetComponentInChildren<Button>(true);
         mahoujin.onClick.AddListener(() => debugCheck());
 
-        talkAfterIenu = talkAffteBattle.GetEnumerator();
+        talkAffteIenu = talkAffteBattle.GetEnumerator();
+        nowEnemyNum = EnemyGroup.Length;
 
     }
 
     void TalkBeforeBattle_Enter()
     {
+        shooter.SetActive(false);
         talkBeforeIenu = talkBeforeBattle.GetEnumerator();
+        if (talkBeforeIenu.MoveNext())
+            {//話はまだ終わっていない,UIに更新させて
+                UIManager.Instance.TalkUIUpdata(talkBeforeIenu.Current as string);
+            }
 
     }
     void TalkBeforeBattle_Update()
@@ -62,6 +75,7 @@ public class CheckPoint : MonoBehaviour
     }
     void TalkBeforeBattle_Exit()
     {
+        shooter.SetActive(true);
         UIManager.Instance.hideTalk();
     }
 
@@ -81,4 +95,54 @@ public class CheckPoint : MonoBehaviour
         Destroy(this.gameObject);
 
     }
+
+    public void KilledEnemy()
+    {
+        nowEnemyNum -= 1;
+        if (nowEnemyNum <= 0)
+        {
+            Debug.Log("Point Clear!");
+            checkPointFSM.ChangeState(CheckPointStates.TalkAffteBattle);
+
+        }
+    }
+
+
+    void TalkAffteBattle_Enter()
+    {
+        
+        talkAffteIenu = talkAffteBattle.GetEnumerator();
+        if (talkAffteIenu.MoveNext())
+            {//話はまだ終わっていない,UIに更新させて
+                UIManager.Instance.TalkUIUpdata(talkAffteIenu.Current as string);
+            }
+
+    }
+    void TalkAffteBattle_Update()
+    {
+
+        if (Input.GetMouseButtonDown(0))
+        {
+
+            if (talkAffteIenu.MoveNext())
+            {//話はまだ終わっていない,UIに更新させて
+                UIManager.Instance.TalkUIUpdata(talkAffteIenu.Current as string);
+            }
+            else
+            {//話がおわり、バトル状態に入る
+
+                checkPointFSM.ChangeState(CheckPointStates.prepare);
+            }
+        }
+    }
+    void TalkAffteBattle_Exit()
+    {
+        
+        UIManager.Instance.hideTalk();
+        GameManager.Instance.nextCheckPoint();
+        Destroy(this.gameObject);
+    }
+
+
+
 }
